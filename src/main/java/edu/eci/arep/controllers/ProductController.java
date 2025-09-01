@@ -27,9 +27,11 @@ public class ProductController {
         ArrayList<Product> salida = productService.getProducts();
         return salida;
     }
-    @DeleteMapping
-    public void deleteProduct(@RequestBody Integer id) {
-        productService.removeProduct(id);
+    @DeleteMapping("/delete")
+    public void deleteProduct(@RequestParam (value="id") String id) {
+        System.out.println("esto llegó: " + id);
+
+        productService.removeProduct(Integer.parseInt(id));
     }
 
 }

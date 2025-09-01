@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-
+    var productos = new Map();
 
     const form = document.getElementById("form-agregar-producto");
     const listaProductos = document.getElementById("productos-lista");
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
             .then(res => res.json())
             .then(data => {
-
+                productos.set(data.id, data);
                 console.log("respuesta:", data);
                 renderListaProductos();
 
@@ -76,12 +76,13 @@ document.addEventListener("DOMContentLoaded", () => {
         productos.forEach((producto, index) => {
             const div = document.createElement("div");
             div.classList.add("producto");
+            div.id = `producto-${producto.id}`;
 
             div.innerHTML = `
                 <img src="${producto.imagen}" alt="${producto.nombre}">
                 <h3>${producto.nombre}</h3>
                 <p>${producto.precio}</p>
-                <button class="eliminar" data-index="${index}">Eliminar</button>
+                <button class="eliminar" data-index="${producto.id}">Eliminar</button>
             `;
 
             // Agregar funcionalidad al botón de eliminar
@@ -96,7 +97,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Función para eliminar un producto
     function eliminarProducto(index) {
-        productos.splice(index, 1);
-        renderListaProductos();
+        let params = new URLSearchParams({id: index});
+        console.log("eliminando el producto con id:", index);
+        fetch(`/product/delete?${params.toString()}`,{
+            method: "DELETE",
+            headers: {"Content-Type": "application/json"}
+
+        })
+        
+        .then(res => {
+            console.log(res)
+            if (res.status === 200) {
+                console.log("Producto eliminado");
+                renderListaProductos();
+            } else {
+                console.error("Error al eliminar el producto");
+            };
+        })
+        .catch(err => console.error("Error:", err));
     }
 });
