@@ -1,0 +1,20 @@
+
+nombre: "control",
+precio: "300.000",
+url: "https://i.pinimg.com/originals/3c/41/72/3c4172c4a6ba0a4b8aef662f8197e059.png"
+
+nombre: "teclado",
+precio: "120.000",
+url: "https://w7.pngwing.com/pngs/1022/458/png-transparent-computer-keyboard-thermaltake-gamer-esports-switch-poseidon-gaming-keyboard-mechanical-blue-electronics-computer-keyboard-thumbnail.png"
+
+nombre: "pantalla",
+precio: "400.000",
+url: "https://w7.pngwing.com/pngs/639/158/png-transparent-rog-swift-4k-hdr-gaming-monitor-pg27uq-computer-monitors-nvidia-g-sync-refresh-rate-4k-resolution-monitors-miscellaneous-television-electronics-thumbnail.png"
+
+nombre: "cerveza",
+precio: "8.000",
+url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIn2h9EsMtr8bAOOveFTM-9Wrq26pGSCrghg&s"
+
+nombre: "lapiz",
+precio: "1.000",
+url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzLfUpMD0qKzlsR5E1VsKxfSvOp1xvjaMMgg&s"
