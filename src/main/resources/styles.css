@@ -1,0 +1,124 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+header {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); /* Sombra hacia abajo */
+}
+
+header img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+main {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px;
+}
+
+.productos, .formulario {
+    width: 45%;
+}
+.productos, h1 {
+text-align: center;
+}
+/* .input{
+    height: 40px;
+    border-radius: 20px; 
+    border-color: #03318C;
+} */
+form input{
+    height: 40px;
+    border-color: #03318C;
+    border-radius: 20px; 
+
+
+
+}
+
+.productos-lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.producto {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 10px;
+    background-color: #5300C8;
+    color: white;
+    text-align: center;
+    height: 300px; /* Altura fija para uniformidad */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra 3D */
+    transition: transform 0.3s, box-shadow 0.3s; /* Efecto de transición */
+}
+
+.producto:hover {
+    transform: translateY(-5px); /* Levanta el producto al pasar el mouse */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Sombra más grande al hacer hover */
+}
+
+.producto img {
+    max-width: 100%;
+    height: 150px; /* Altura fija para las imágenes */
+    object-fit: cover; /* Recorta las imágenes para que se ajusten al contenedor */
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.producto h3, .producto p {
+    margin: 5px 0;
+}
+
+button {
+    width: 30%;
+    cursor: pointer;
+    padding: 10px;
+    color: #03318C;
+    border-radius: 15px;
+    border-color: #03318C;
+    background-color: white;
+
+    
+}
+.buttons{
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+
+}
+
+button:hover {
+    background-color: #03318C;
+    color: white;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+footer {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.3); /* Sombra hacia arriba */
+}
+
+footer img {
+    width: 100%;
+    display: block;
+    max-height: 150px;
+}

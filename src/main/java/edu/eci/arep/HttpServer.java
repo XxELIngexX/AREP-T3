@@ -1,16 +1,20 @@
 package edu.eci.arep;
 
-import edu.eci.arep.anotation.GetMapping;
-import edu.eci.arep.anotation.RestController;
+import edu.eci.arep.anotation.*;
+import edu.eci.arep.context.ApplicationContext;
+import edu.eci.arep.controllers.ProductController;
+import edu.eci.arep.services.ProductService;
+import edu.eci.arep.util.JsonUtil;
+
 
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import edu.eci.arep.context.ApplicationContext.*;
 
 public class HttpServer {
 
@@ -18,19 +22,41 @@ public class HttpServer {
     public static Map<String, Method> methods = new HashMap<>();
 
     private static void loadComponents(String[] args) {
+        ApplicationContext.registerBean(ProductService.class, new ProductService());
         try {
-            Class<?> c = Class.forName(args[0]);
-            if (c.isAnnotationPresent(RestController.class)) {
-                Method[] ms = c.getDeclaredMethods();
-                for (Method m : ms) {
-                    if (m.isAnnotationPresent(GetMapping.class)) {
-                        String mapping = m.getAnnotation(GetMapping.class).value();
-                        methods.put(mapping, m);
+            for (String arg : args) {
+
+                Class<?> c = Class.forName(arg);
+                if (c.isAnnotationPresent(RestController.class)) {
+                    Object controllerInstance = c.getDeclaredConstructor().newInstance();
+                    ApplicationContext.registerBean(c, controllerInstance);
+                    String basePath = "";
+                    if (c.isAnnotationPresent(RequestMapping.class)) {
+                        basePath = c.getAnnotation(RequestMapping.class).value();
+                    }
+                    Method[] ms = c.getDeclaredMethods();
+                    for (Method m : ms) {
+                        if (m.isAnnotationPresent(GetMapping.class)) {
+                            String mapping = m.getAnnotation(GetMapping.class).value();
+                            methods.put(basePath + mapping, m);
+                        }
+                        if (m.isAnnotationPresent(PostMapping.class)) {
+                            String mapping = m.getAnnotation(PostMapping.class).value();
+                            methods.put(basePath + mapping, m);
+                        }
                     }
                 }
             }
         } catch (ClassNotFoundException e) {
             System.err.println("Clase no encontrada: " + e.getMessage());
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -74,6 +100,7 @@ public class HttpServer {
                 if (inputLine.startsWith("Content-Length:")) {
                     contentLengthStr = inputLine.split(": ")[1];
                 }
+
                 if (inputLine.isEmpty()) {
                     break;
                 }
@@ -83,8 +110,28 @@ public class HttpServer {
 
             // Manejo de endpoints REST
             if (methods.containsKey(path)) {
-                String body = invokeService(request);
-                responseBytes = buildHttpResponse(body, "text/html");
+                String bodyString = null;
+                if (method.equals("POST")) {
+
+                    if (contentLengthStr != null) {
+                        int contentLength = Integer.parseInt(contentLengthStr);
+                        char[] body = new char[contentLength];
+                        in.read(body, 0, contentLength);
+                        bodyString = new String(body);
+                    }
+                }
+                String body = invokeService(request,bodyString);
+                System.out.println("salida del invokeService");
+                System.out.println(body);
+
+                HttpResponse res = new HttpResponse();
+                res.setStatus(200, "OK");
+                res.setContentType("application/json");
+                res.setBody(body);
+                rawOut.write(res.buildResponse().getBytes(StandardCharsets.UTF_8));
+                rawOut.flush();
+
+                //responseBytes = buildHttpResponse(body, "application/json");
             } else {
                 // Manejo de archivos estáticos
                 String filePath = localPath + path;
@@ -95,15 +142,32 @@ public class HttpServer {
                 if (file.exists() && !file.isDirectory()) {
                     String contentType = getContentType(filePath);
                     byte[] fileData = Files.readAllBytes(file.toPath());
-                    responseBytes = buildHttpResponse(fileData, contentType);
+
+                    HttpResponse res = new HttpResponse();
+                    res.setStatus(200, "OK");
+                    res.setContentType(contentType);
+                    res.setContentLength( fileData.length);
+
+                    rawOut.write(res.buildResponse().getBytes(StandardCharsets.UTF_8));
+                    rawOut.flush();
+                    rawOut.write(fileData);
+                    rawOut.flush();
+
+                    //responseBytes = buildHttpResponse(fileData, contentType);
                 } else {
                     String notFound = "<html><body><h1>404 Not Found</h1></body></html>";
-                    responseBytes = buildHttpResponse(notFound.getBytes(), "text/html", 404, "Not Found");
+                    HttpResponse res = new HttpResponse();
+
+                    res.setStatus(404, "Not Found");
+                    res.setContentType("text/html");
+                    rawOut.write(res.buildResponse().getBytes(StandardCharsets.UTF_8));
+                    rawOut.flush();
+                   //responseBytes = buildHttpResponse(notFound.getBytes(), "text/html", 404, "Not Found");
                 }
             }
 
-            rawOut.write(responseBytes);
-            rawOut.flush();
+//            rawOut.write(responseBytes);
+//            rawOut.flush();
             clientSocket.close();
 
         } catch (IOException e) {
@@ -111,36 +175,93 @@ public class HttpServer {
         }
     }
 
-    private static String invokeService(URI requestUri) {
+
+
+
+
+    private static String invokeService(URI requestUri,String bodyString) throws IOException {
         Method m = methods.get(requestUri.getPath());
+
         if (m != null) {
             try {
-                return (String) m.invoke(null);
-            } catch (IllegalAccessException | InvocationTargetException e) {
+                Map<String, String> queryParams = new HashMap<>();
+                String query = requestUri.getQuery();
+                if (query != null) {
+                    String[] params = query.split("=");
+                    queryParams.put(params[0], params[1]);
+                }
+                Parameter[] parameters = m.getParameters();
+                Object[] parameterValues = new Object[parameters.length];
+
+
+                for (int i = 0; i < parameters.length; i++) {
+                    Parameter p = parameters[i];
+
+                    RequestParam rp = p.getAnnotation(RequestParam.class);
+                    if (rp != null) {
+                        String name = rp.value();
+                        String value = queryParams.get(name);
+
+                        if (value == null || value.isEmpty()) {
+                            value = rp.defaultValue();
+                        }
+
+                        parameterValues[i] = value;
+                        continue;
+                    }
+
+                    RequestBody rb = p.getAnnotation(RequestBody.class);
+                    if (rb != null) {
+                        Class<?> paramType = p.getType();
+                        Object obj = JsonUtil.fromJson(bodyString, paramType);
+                        parameterValues[i] = obj;
+                        continue;
+                    }
+
+                }
+
+                Boolean isStatic = Modifier.isStatic(m.getModifiers());
+                Object controllerInstance = null;
+
+                if (!isStatic) {
+                    controllerInstance = ApplicationContext.getBean(m.getDeclaringClass());
+                }
+                Object request =  m.invoke(controllerInstance, parameterValues);
+
+
+                if (request instanceof String) {
+                    System.out.println((String)request);
+                    return (String) request;
+                }else {
+                    System.out.println(JsonUtil.toJson(request));
+                    return JsonUtil.toJson(request);
+                }
+
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
         return "<h1>Error al invocar servicio</h1>";
     }
-
-    private static byte[] buildHttpResponse(String body, String contentType) {
-        return buildHttpResponse(body.getBytes(StandardCharsets.UTF_8), contentType, 200, "OK");
-    }
-
-    private static byte[] buildHttpResponse(byte[] bodyBytes, String contentType) {
-        return buildHttpResponse(bodyBytes, contentType, 200, "OK");
-    }
-
-    private static byte[] buildHttpResponse(byte[] bodyBytes, String contentType, int statusCode, String statusText) {
-        String header = "HTTP/1.1 " + statusCode + " " + statusText + "\r\n" +
-                "Content-Type: " + contentType + "\r\n" +
-                "Content-Length: " + bodyBytes.length + "\r\n\r\n";
-        byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
-        byte[] response = new byte[headerBytes.length + bodyBytes.length];
-        System.arraycopy(headerBytes, 0, response, 0, headerBytes.length);
-        System.arraycopy(bodyBytes, 0, response, headerBytes.length, bodyBytes.length);
-        return response;
-    }
+//
+//    private static byte[] buildHttpResponse(String body, String contentType) {
+//        return buildHttpResponse(body.getBytes(StandardCharsets.UTF_8), contentType, 200, "OK");
+//    }
+//
+//    private static byte[] buildHttpResponse(byte[] bodyBytes, String contentType) {
+//        return buildHttpResponse(bodyBytes, contentType, 200, "OK");
+//    }
+//
+//    private static byte[] buildHttpResponse(byte[] bodyBytes, String contentType, int statusCode, String statusText) {
+//        String header = "HTTP/1.1 " + statusCode + " " + statusText + "\r\n" +
+//                "Content-Type: " + contentType + "\r\n" +
+//                "Content-Length: " + bodyBytes.length + "\r\n\r\n";
+//        byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
+//        byte[] response = new byte[headerBytes.length + bodyBytes.length];
+//        System.arraycopy(headerBytes, 0, response, 0, headerBytes.length);
+//        System.arraycopy(bodyBytes, 0, response, headerBytes.length, bodyBytes.length);
+//        return response;
+//    }
 
     private static String getContentType(String path) {
         if (path.endsWith(".html") || path.endsWith(".htm")) return "text/html";
